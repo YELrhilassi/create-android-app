@@ -8,7 +8,7 @@ export const logger = {
     // Minimal "Vite-like" output
     banner: () => {
         console.log();
-        console.log(kleur.bgGreen().black(' CREATE-ANDROID-APP '));
+        console.log(kleur.bgGreen().black(' CREATE-DROID '));
         console.log();
     }
 };
