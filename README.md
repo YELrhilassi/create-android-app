@@ -42,16 +42,21 @@ Follow the interactive prompts:
 ```bash
 cd my-app
 
-# Build and verify the project
-./gradlew build
+# Start "Live Reload" mode (Continuous Build)
+# Edits will auto-compile and install on your connected device!
+npm run dev
 
-# Install on a connected device/emulator
-./gradlew installDebug
+# Or build manually
+npm run build
 ```
 
 ## What's Inside?
 
-The generated project is **clean** and follows modern best practices:
+The generated project is **clean** and follows modern best practices. It includes a `package.json` with convenience scripts:
+
+*   `npm run dev`: Watches your code and auto-deploys changes (`./gradlew -t installDebug`).
+*   `npm run build`: Generates a release APK (`./gradlew assembleRelease`).
+*   `npm test`: Runs unit tests (`./gradlew test`).
 
 ```text
 my-app/

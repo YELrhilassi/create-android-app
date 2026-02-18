@@ -97,7 +97,7 @@ export async function generateProject(options: ProjectOptions) {
     version: "0.1.0",
     private: true,
     scripts: {
-      "dev": "./gradlew installDebug",
+      "dev": "./gradlew -t installDebug",
       "start": "npm run dev",
       "build": "./gradlew assembleRelease",
       "build:debug": "./gradlew assembleDebug",
