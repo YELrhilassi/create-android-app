@@ -20,6 +20,11 @@ export async function generateProject(options) {
     // 3. Copy Base
     logger.info(`Copying base template from ${baseTemplate}...`);
     await fs.copy(baseTemplate, projectPath);
+    // Rename _gitignore to .gitignore
+    const gitignorePath = path.join(projectPath, '_gitignore');
+    if (fs.existsSync(gitignorePath)) {
+        await fs.move(gitignorePath, path.join(projectPath, '.gitignore'));
+    }
     // 4. Copy UI specific files
     if (fs.existsSync(uiTemplate)) {
         logger.info(`Applying ${uiType} template...`);
