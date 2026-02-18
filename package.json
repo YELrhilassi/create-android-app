@@ -1,12 +1,12 @@
 {
   "name": "create-droid",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "The fastest way to start an Android project. No Studio required.",
   "author": "YELrhilassi",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/YELrhilassi/create-android-app.git"
+    "url": "git+https://github.com/YELrhilassi/create-android-app.git"
   },
   "keywords": [
     "android",
@@ -18,7 +18,7 @@
     "mobile"
   ],
   "bin": {
-    "create-droid": "./bin/cli.js"
+    "create-droid": "bin/cli.js"
   },
   "files": [
     "bin",
