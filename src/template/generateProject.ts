@@ -1,6 +1,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { execa } from 'execa';
 import { CONSTANTS } from '../utils/constants.js';
 import { logger } from '../utils/logger.js';
 
@@ -88,6 +89,36 @@ export async function generateProject(options: ProjectOptions) {
   // Create local.properties with SDK location
   const localProperties = `sdk.dir=${sdkPath}`;
   await fs.writeFile(path.join(projectPath, 'local.properties'), localProperties);
+
+  // 6. Setup NPM Scripts (The "Vite-like" experience)
+  logger.info('Adding npm convenience scripts...');
+  const packageJson = {
+    name: projectName.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
+    version: "0.1.0",
+    private: true,
+    scripts: {
+      "dev": "./gradlew installDebug",
+      "start": "npm run dev",
+      "build": "./gradlew assembleRelease",
+      "build:debug": "./gradlew assembleDebug",
+      "test": "./gradlew test",
+      "lint": "./gradlew lint",
+      "clean": "./gradlew clean",
+      "help": "./gradlew --help"
+    }
+  };
+  await fs.writeJSON(path.join(projectPath, 'package.json'), packageJson, { spaces: 2 });
+
+  // 7. Initialize Git
+  try {
+    logger.info('Initializing git repository...');
+    await execa('git', ['init'], { cwd: projectPath });
+    await execa('git', ['add', '.'], { cwd: projectPath });
+    await execa('git', ['commit', '-m', 'Initial commit via create-droid'], { cwd: projectPath });
+    logger.success('Git repository initialized.');
+  } catch (e) {
+    logger.warn('Failed to initialize git repository. You may need to run "git init" manually.');
+  }
 }
 
 async function patchFile(filePath: string, replacements: Record<string, string>) {
