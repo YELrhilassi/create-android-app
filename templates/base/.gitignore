@@ -1,0 +1,23 @@
+# Gradle
+.gradle/
+build/
+app/build/
+
+# Local configuration file (sdk.dir is here)
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+*.xml
+
+# Mac
+.DS_Store
+
+# Kotlin
+.kotlin/
+
+# Secrets (if any)
+secrets.properties
