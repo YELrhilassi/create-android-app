@@ -58,6 +58,15 @@ The generated project is **clean** and follows modern best practices. It include
 *   `npm run build`: Generates a release APK (`./gradlew assembleRelease`).
 *   `npm test`: Runs unit tests (`./gradlew test`).
 
+### 📱 ADB Scripts (Wireless Debugging)
+
+We include a robust `adb` wrapper that works even if `adb` is not in your PATH (uses the local SDK):
+
+*   `npm run adb:devices`: List connected devices.
+*   `npm run adb:connect <ip>`: Connect to a device via Wi-Fi.
+*   `npm run adb:pair <ip> <code>`: Pair a new device (Android 11+).
+*   `npm run adb:logcat`: View device logs.
+
 ```text
 my-app/
 ├── app/

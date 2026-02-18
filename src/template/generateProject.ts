@@ -104,10 +104,24 @@ export async function generateProject(options: ProjectOptions) {
       "test": "./gradlew test",
       "lint": "./gradlew lint",
       "clean": "./gradlew clean",
-      "help": "./gradlew --help"
+      "help": "./gradlew --help",
+      "adb": "node scripts/adb.js",
+      "adb:devices": "npm run adb devices",
+      "adb:connect": "npm run adb connect",
+      "adb:pair": "npm run adb pair",
+      "adb:logcat": "npm run adb logcat",
+      "adb:reverse": "npm run adb reverse tcp:8081 tcp:8081"
     }
   };
   await fs.writeJSON(path.join(projectPath, 'package.json'), packageJson, { spaces: 2 });
+  
+  // Ensure scripts dir exists (since we copy base first, but adb.js is new)
+  // Wait, templates/base/scripts/adb.js is ALREADY in the base template.
+  // We just need to ensure the `scripts` folder is copied correctly.
+  // Since we copy `templates/base`, it should be fine.
+  
+  // Make scripts executable if needed (node doesn't need +x but good practice)
+  // await fs.chmod(path.join(projectPath, 'scripts/adb.js'), 0o755);
 
   // 7. Initialize Git
   try {
