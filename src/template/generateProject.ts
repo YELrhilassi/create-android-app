@@ -8,7 +8,7 @@ import { logger } from '../utils/logger.js';
 interface ProjectOptions {
   projectPath: string;
   projectName: string;
-  uiType: 'compose' | 'views';
+  uiType: 'compose' | 'views' | 'mobile-compose-navigation' | 'tv-compose' | 'compose-library';
   sdkPath: string;
 }
 
@@ -17,6 +17,8 @@ const __dirname = path.dirname(__filename);
 
 export async function generateProject(options: ProjectOptions) {
   const { projectPath, projectName, uiType, sdkPath } = options;
+  const isLibrary = uiType === 'compose-library';
+  const moduleName = isLibrary ? 'library' : 'app';
   
   // 1. Ensure target directory
   await fs.ensureDir(projectPath);
@@ -24,8 +26,7 @@ export async function generateProject(options: ProjectOptions) {
   // 2. Resolve template paths
   const templateRoot = path.resolve(__dirname, '../../templates');
   const baseTemplate = path.join(templateRoot, 'base');
-  const uiTemplateName = uiType === 'compose' ? 'ui-compose' : 'ui-views';
-  const uiTemplate = path.join(templateRoot, uiTemplateName);
+  const uiTemplate = path.join(templateRoot, uiType);
 
   if (!fs.existsSync(baseTemplate)) {
     throw new Error(`Template not found at ${baseTemplate}`);
@@ -35,6 +36,11 @@ export async function generateProject(options: ProjectOptions) {
   logger.info(`Copying base template from ${baseTemplate}...`);
   await fs.copy(baseTemplate, projectPath);
   
+  if (isLibrary) {
+      // Remove default app module if it's a library
+      await fs.remove(path.join(projectPath, 'app'));
+  }
+
   // Rename _gitignore to .gitignore
   const gitignorePath = path.join(projectPath, '_gitignore');
   if (fs.existsSync(gitignorePath)) {
@@ -55,23 +61,28 @@ export async function generateProject(options: ProjectOptions) {
   // Replace in settings.gradle.kts
   await patchFile(path.join(projectPath, 'settings.gradle.kts'), {
     '{{PROJECT_NAME}}': projectName,
+    'include(":app")': `include(":${moduleName}")`
   });
 
-  // Replace in app/build.gradle.kts
-  await patchFile(path.join(projectPath, 'app/build.gradle.kts'), {
+  // Replace in module build.gradle.kts
+  const moduleBuildFile = path.join(projectPath, moduleName, 'build.gradle.kts');
+  await patchFile(moduleBuildFile, {
     '{{APPLICATION_ID}}': packageName,
     '{{COMPILE_SDK}}': CONSTANTS.COMPILE_SDK.toString(),
     '{{MIN_SDK}}': CONSTANTS.MIN_SDK.toString(),
     '{{TARGET_SDK}}': CONSTANTS.TARGET_SDK.toString(),
   });
   
-  // Replace in app/src/main/res/values/strings.xml
-  await patchFile(path.join(projectPath, 'app/src/main/res/values/strings.xml'), {
-    '{{PROJECT_NAME}}': projectName,
-  });
+  // Replace in strings.xml
+  const stringsPath = path.join(projectPath, moduleName, 'src/main/res/values/strings.xml');
+  if (fs.existsSync(stringsPath)) {
+      await patchFile(stringsPath, {
+        '{{PROJECT_NAME}}': projectName,
+      });
+  }
 
   // Handle Source Code Relocation
-  const srcBase = path.join(projectPath, 'app/src/main/java');
+  const srcBase = path.join(projectPath, moduleName, 'src/main/java');
   const oldPackagePath = path.join(srcBase, 'com/example/template');
   const newPackagePath = path.join(srcBase, ...packageName.split('.'));
 
@@ -81,8 +92,7 @@ export async function generateProject(options: ProjectOptions) {
     // Recursive file patching for package statement
     await patchSourceFiles(newPackagePath, packageName);
     
-    // Clean up empty dirs (com/example/template -> com/example -> com)
-    // Only if empty.
+    // Clean up empty dirs
     await cleanEmptyDirs(srcBase);
   }
 
@@ -90,22 +100,22 @@ export async function generateProject(options: ProjectOptions) {
   const localProperties = `sdk.dir=${sdkPath}`;
   await fs.writeFile(path.join(projectPath, 'local.properties'), localProperties);
 
-  // 6. Setup NPM Scripts (The "Vite-like" experience)
+  // 6. Setup NPM Scripts
   logger.info('Adding npm convenience scripts...');
   const packageJson = {
     name: projectName.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
     version: "0.1.0",
     private: true,
     scripts: {
-      "dev": "./gradlew installDebug --continuous --configuration-cache --parallel --offline",
+      "dev": `./gradlew installDebug --continuous --configuration-cache --parallel --offline`,
       "start": "npm run dev",
-      "build": "./gradlew assembleRelease",
-      "build:debug": "./gradlew assembleDebug",
-      "test": "./gradlew test",
-      "lint": "./gradlew lint",
-      "clean": "./gradlew clean",
-      "clean:deep": "rm -rf .gradle app/build build",
-      "help": "./gradlew --help",
+      "build": `./gradlew assembleRelease`,
+      "build:debug": `./gradlew assembleDebug`,
+      "test": `./gradlew test`,
+      "lint": `./gradlew lint`,
+      "clean": `./gradlew clean`,
+      "clean:deep": "rm -rf .gradle app/build build library/build",
+      "help": `./gradlew --help`,
       "adb": "node scripts/adb.js",
       "adb:devices": "npm run adb devices",
       "adb:connect": "npm run adb connect",
@@ -115,14 +125,6 @@ export async function generateProject(options: ProjectOptions) {
     }
   };
   await fs.writeJSON(path.join(projectPath, 'package.json'), packageJson, { spaces: 2 });
-  
-  // Ensure scripts dir exists (since we copy base first, but adb.js is new)
-  // Wait, templates/base/scripts/adb.js is ALREADY in the base template.
-  // We just need to ensure the `scripts` folder is copied correctly.
-  // Since we copy `templates/base`, it should be fine.
-  
-  // Make scripts executable if needed (node doesn't need +x but good practice)
-  // await fs.chmod(path.join(projectPath, 'scripts/adb.js'), 0o755);
 
   // 7. Initialize Git
   try {
@@ -132,7 +134,7 @@ export async function generateProject(options: ProjectOptions) {
     await execa('git', ['commit', '-m', 'Initial commit via create-droid'], { cwd: projectPath });
     logger.success('Git repository initialized.');
   } catch (e) {
-    logger.warn('Failed to initialize git repository. You may need to run "git init" manually.');
+    logger.warn('Failed to initialize git repository.');
   }
 }
 
@@ -161,12 +163,6 @@ async function patchSourceFiles(dir: string, packageName: string) {
 }
 
 async function cleanEmptyDirs(dir: string) {
-    // Basic cleanup: remove com/example/template if empty
-    // We moved content from com/example/template to new path.
-    // So we check if com/example/template is empty, then com/example, then com.
-    
-    // This is tricky because we don't know the exact depth of the old structure easily without hardcoding.
-    // Hardcoded for "com/example/template":
     const oldPath = path.join(dir, 'com/example/template');
     try {
         if (fs.existsSync(oldPath) && (await fs.readdir(oldPath)).length === 0) {
@@ -180,7 +176,5 @@ async function cleanEmptyDirs(dir: string) {
                 }
             }
         }
-    } catch (e) {
-        // Ignore errors during cleanup
-    }
+    } catch (e) {}
 }

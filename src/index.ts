@@ -23,10 +23,13 @@ export async function run(args: string[]) {
     {
       type: 'select',
       name: 'uiType',
-      message: 'Select UI Framework:',
+      message: 'Select Template:',
       choices: [
-        { title: 'Jetpack Compose (Recommended)', value: 'compose' },
-        { title: 'XML Views (Legacy)', value: 'views' }
+        { title: 'Jetpack Compose (Mobile)', value: 'compose', description: 'Recommended for phone/tablet apps' },
+        { title: 'Compose with Navigation', value: 'mobile-compose-navigation', description: 'Includes Navigation, BottomBar, Screens' },
+        { title: 'Compose for TV', value: 'tv-compose', description: 'Optimized for Android TV (Leanback)' },
+        { title: 'Compose Library', value: 'compose-library', description: 'Scaffold for publishing UI libraries' },
+        { title: 'XML Views (Legacy)', value: 'views', description: 'Classic View-based Android development' }
       ],
       initial: 0
     }

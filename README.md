@@ -35,7 +35,12 @@ npx create-droid my-app
 
 Follow the interactive prompts:
 1.  **Project Name**: Defaults to directory name.
-2.  **UI Framework**: Choose **Jetpack Compose** (Modern declarative UI) or **XML Views** (Classic).
+2.  **Template Selection**:
+    *   **Jetpack Compose (Mobile)**: Modern phone/tablet starter.
+    *   **Compose with Navigation**: Includes Navigation, BottomBar, and multi-screen setup.
+    *   **Compose for TV**: Optimized for Android TV with `tv-material`.
+    *   **Compose Library**: Foundation for publishing reusable UI components.
+    *   **XML Views (Legacy)**: For maintenance or classic development.
 
 ### After Scaffolding
 
@@ -54,9 +59,10 @@ npm run build
 
 The generated project is **clean** and follows modern best practices. It includes a `package.json` with convenience scripts:
 
-*   `npm run dev`: Watches your code and auto-deploys changes (`./gradlew -t installDebug`).
-*   `npm run build`: Generates a release APK (`./gradlew assembleRelease`).
-*   `npm test`: Runs unit tests (`./gradlew test`).
+*   `npm run dev`: High-speed development loop. Watches code and auto-deploys via `--continuous` and `--configuration-cache`.
+*   `npm run build`: Generates a production release APK.
+*   `npm run clean:deep`: Purges all build artifacts and Gradle cache to reclaim disk space.
+*   `npm test`: Runs unit tests.
 
 ### 📱 ADB Scripts (Wireless Debugging)
 
