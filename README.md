@@ -62,6 +62,7 @@ The generated project is **clean** and follows modern best practices. It include
 *   `npm run dev`: High-speed development loop. Watches code and auto-deploys via `--continuous` and `--configuration-cache`.
 *   `npm run build`: Generates a production release APK.
 *   `npm run clean:deep`: Purges all build artifacts and Gradle cache to reclaim disk space.
+*   `npm run lsp:sync`: (Neovim/LSP users) Compiles classes to help the language server index dependencies.
 *   `npm test`: Runs unit tests.
 
 ### 📱 ADB Scripts (Wireless Debugging)

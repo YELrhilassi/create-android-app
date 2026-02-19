@@ -82,7 +82,7 @@ export async function generateProject(options: ProjectOptions) {
   }
 
   // Handle Source Code Relocation
-  const srcBase = path.join(projectPath, moduleName, 'src/main/java');
+  const srcBase = path.join(projectPath, moduleName, 'src/main/kotlin');
   const oldPackagePath = path.join(srcBase, 'com/example/template');
   const newPackagePath = path.join(srcBase, ...packageName.split('.'));
 
@@ -115,6 +115,7 @@ export async function generateProject(options: ProjectOptions) {
       "lint": `./gradlew lint`,
       "clean": `./gradlew clean`,
       "clean:deep": "rm -rf .gradle app/build build library/build",
+      "lsp:sync": "./gradlew classes",
       "help": `./gradlew --help`,
       "adb": "node scripts/adb.js",
       "adb:devices": "npm run adb devices",

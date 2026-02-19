@@ -27,6 +27,11 @@ android {
     kotlinOptions {
         jvmTarget = "1.8"
     }
+    sourceSets {
+        getByName("main") {
+            java.setSrcDirs(listOf("src/main/kotlin", "src/main/java"))
+        }
+    }
     buildFeatures {
         compose = true
     }
