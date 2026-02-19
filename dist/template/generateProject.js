@@ -36,6 +36,9 @@ export async function generateProject(options) {
         logger.info(`Applying ${uiType} template...`);
         await fs.copy(uiTemplate, projectPath, { overwrite: true });
     }
+    else {
+        throw new Error(`UI template not found: ${uiType} at ${uiTemplate}`);
+    }
     // 5. Patch Configuration
     logger.info(`Patching configuration...`);
     const packageName = `com.example.${projectName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;

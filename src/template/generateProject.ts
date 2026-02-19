@@ -51,6 +51,8 @@ export async function generateProject(options: ProjectOptions) {
   if (fs.existsSync(uiTemplate)) {
     logger.info(`Applying ${uiType} template...`);
     await fs.copy(uiTemplate, projectPath, { overwrite: true });
+  } else {
+      throw new Error(`UI template not found: ${uiType} at ${uiTemplate}`);
   }
 
   // 5. Patch Configuration
