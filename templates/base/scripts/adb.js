@@ -39,6 +39,31 @@ function runCommand(args, inherit = true) {
   }
 }
 
+async function getMdnsServices() {
+    const output = runCommand(['mdns', 'services'], false);
+    if (!output) return [];
+    
+    // Output format usually:
+    // List of discovered mdns services
+    // <name> <type> <ip>:<port>
+    // myphone _adb-tls-connect._tcp. 192.168.1.5:38291
+    
+    const lines = output.split('\n');
+    const services = [];
+    
+    for (const line of lines) {
+        if (!line.includes('_adb-tls-connect') && !line.includes('_adb._tcp')) continue;
+        
+        const parts = line.trim().split(/\s+/);
+        if (parts.length >= 3) {
+             const ipPort = parts[parts.length - 1]; // last part is ip:port
+             const name = parts[0];
+             services.push({ name, ipPort });
+        }
+    }
+    return services;
+}
+
 function clearScreen() {
     process.stdout.write('\x1Bc');
 }
@@ -85,7 +110,6 @@ async function showMenu() {
             case '5':
                 console.log('Starting Logcat (Ctrl+C to stop)...');
                 await runCommand(['logcat']);
-                // Logcat blocks, so we won't return easily loop unless killed
                 break;
             case '6':
                 await runCommand(['kill-server']);
@@ -103,12 +127,31 @@ async function showMenu() {
 }
 
 async function handleConnect() {
+    console.log('\nScanning for devices via mDNS...');
+    const services = await getMdnsServices();
+    
+    if (services.length > 0) {
+        console.log('\nDiscovered Devices:');
+        services.forEach((s, i) => console.log(`${i + 1}. ${s.name} (${s.ipPort})`));
+        console.log(`${services.length + 1}. Enter manually`);
+    } else {
+        console.log('No mDNS devices found.');
+    }
+
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    rl.question('Enter Device IP:Port (e.g., 192.168.1.5:5555): ', async (ip) => {
+    rl.question('\nSelect device number or enter IP:Port: ', async (answer) => {
         rl.close();
-        if (ip) {
-            console.log(`Connecting to ${ip}...`);
-            await runCommand(['connect', ip]);
+        
+        let target = answer.trim();
+        const idx = parseInt(target) - 1;
+        
+        if (!isNaN(idx) && idx >= 0 && idx < services.length) {
+            target = services[idx].ipPort;
+        }
+        
+        if (target) {
+            console.log(`Connecting to ${target}...`);
+            await runCommand(['connect', target]);
         }
         await pause();
         showMenu();
@@ -116,13 +159,37 @@ async function handleConnect() {
 }
 
 async function handlePair() {
+    console.log('\nScanning for devices via mDNS...');
+    const services = await getMdnsServices();
+    
+    if (services.length > 0) {
+        console.log('\nDiscovered Devices:');
+        services.forEach((s, i) => console.log(`${i + 1}. ${s.name} (${s.ipPort})`));
+        console.log(`${services.length + 1}. Enter manually`);
+    } else {
+        console.log('No mDNS devices found.');
+    }
+
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    rl.question('Enter Device IP:Port (from "Wireless debugging"): ', (ip) => {
-        rl.question('Enter Pairing Code: ', async (code) => {
+    rl.question('\nSelect device number or enter IP:Port: ', (answer) => {
+        let target = answer.trim();
+        const idx = parseInt(target) - 1;
+        
+        if (!isNaN(idx) && idx >= 0 && idx < services.length) {
+            target = services[idx].ipPort;
+        }
+
+        if (!target) {
             rl.close();
-            if (ip && code) {
-                console.log(`Pairing with ${ip}...`);
-                await runCommand(['pair', ip, code]);
+            showMenu();
+            return;
+        }
+
+        rl.question(`Enter Pairing Code for ${target}: `, async (code) => {
+            rl.close();
+            if (code) {
+                console.log(`Pairing with ${target}...`);
+                await runCommand(['pair', target, code]);
             }
             await pause();
             showMenu();
