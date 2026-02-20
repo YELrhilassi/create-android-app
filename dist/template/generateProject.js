@@ -120,6 +120,7 @@ export async function generateProject(options) {
         license: "MIT",
         scripts: {
             "dev": `./gradlew installDebug --continuous --configuration-cache --parallel --offline`,
+            "open": `node scripts/adb.js shell am start -n ${packageName}/.MainActivity`,
             "start": "npm run dev",
             "build": `./gradlew assembleRelease`,
             "build:debug": `./gradlew assembleDebug`,

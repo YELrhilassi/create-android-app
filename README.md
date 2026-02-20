@@ -60,7 +60,8 @@ npm run add
 
 The generated project is **clean** and follows modern best practices. It includes a `package.json` with convenience scripts:
 
-*   `npm run dev`: High-speed development loop. Watches code and auto-deploys via `--continuous` and `--configuration-cache`.
+*   `npm run dev`: High-speed development loop. Watches code and auto-deploys via `--continuous`.
+*   `npm run open`: Launches the app on the connected device.
 *   `npm run build`: Generates a production release APK.
 *   `npm run clean:deep`: Purges all build artifacts and Gradle cache to reclaim disk space.
 *   `npm run lsp:sync`: (Neovim/LSP users) Compiles classes to help the language server index dependencies.
