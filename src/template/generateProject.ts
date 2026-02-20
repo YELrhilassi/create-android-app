@@ -42,6 +42,8 @@ export async function generateProject(options: ProjectOptions) {
     'TV_FOUNDATION_VERSION': { group: 'androidx.tv', name: 'tv-foundation', stableOnly: false },
     'TV_MATERIAL_VERSION': { group: 'androidx.tv', name: 'tv-material', stableOnly: false },
     'CONSTRAINTLAYOUT_VERSION': { group: 'androidx.constraintlayout', name: 'constraintlayout' },
+    'RETROFIT_VERSION': { group: 'com.squareup.retrofit2', name: 'retrofit' },
+    'KTOR_VERSION': { group: 'io.ktor', name: 'ktor-client-core' },
   };
 
   const resolvedMaven = await VersionResolver.resolveAll(artifacts);
@@ -63,6 +65,11 @@ export async function generateProject(options: ProjectOptions) {
           
       versionPatches[`{{${key}}}`] = value;
   }
+
+  // Resolve KSP separately as it depends on Kotlin version
+  const kotlinVersion = versionPatches['{{KOTLIN_VERSION}}'];
+  const kspVersion = await VersionResolver.getLatestKspVersion(kotlinVersion) || `${kotlinVersion}-1.0.29`;
+  versionPatches['{{KSP_VERSION}}'] = kspVersion;
 
   const templateRoot = path.resolve(__dirname, '../../templates');
   const baseTemplate = path.join(templateRoot, 'base');
@@ -128,7 +135,7 @@ export async function generateProject(options: ProjectOptions) {
 
   // Use AddonManager for libraries
   if (libraries.length > 0) {
-      const addonManager = new AddonManager(projectPath, moduleName, packageName);
+      const addonManager = new AddonManager(projectPath, moduleName, packageName, versionPatches);
       for (const lib of libraries) {
           await addonManager.install(lib);
       }

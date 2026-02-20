@@ -35,7 +35,21 @@ export class VersionResolver {
         return {};
     }
 
-    private static async fetchFromRepo(repo: string, path: string, stableOnly: boolean = true): Promise<string | null> {
+    static async getLatestKspVersion(kotlinVersion: string): Promise<string | null> {
+        const group = 'com.google.devtools.ksp';
+        const name = 'com.google.devtools.ksp.gradle.plugin';
+        const path = `${group.replace(/\./g, '/')}/${name}/maven-metadata.xml`;
+        
+        // Try Maven Central for KSP, then Google Maven
+        let version = await this.fetchFromRepo(this.MAVEN_CENTRAL, path, true, kotlinVersion);
+        if (!version) {
+            version = await this.fetchFromRepo(this.GOOGLE_MAVEN, path, true, kotlinVersion);
+        }
+
+        return version;
+    }
+
+    private static async fetchFromRepo(repo: string, path: string, stableOnly: boolean = true, prefix?: string): Promise<string | null> {
         try {
             const response = await fetch(`${repo}/${path}`);
             if (!response.ok) return null;
@@ -44,13 +58,17 @@ export class VersionResolver {
             const versionsMatch = text.match(/<version>([^<]+)<\/version>/g);
             if (!versionsMatch) return null;
 
-            const versions = versionsMatch
+            let versions = versionsMatch
                 .map(v => v.replace(/<\/?version>/g, ''))
                 .filter(v => !stableOnly || this.isStable(v));
 
+            if (prefix) {
+                versions = versions.filter(v => v.startsWith(prefix));
+            }
+
             if (versions.length === 0 && stableOnly) {
                 // Fallback to latest even if not stable if no stable found
-                return this.fetchFromRepo(repo, path, false);
+                return this.fetchFromRepo(repo, path, false, prefix);
             }
 
             return versions[versions.length - 1] || null;

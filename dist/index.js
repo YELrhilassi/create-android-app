@@ -5,6 +5,8 @@ import { installSdk } from './sdk/installSdk.js';
 import { generateProject } from './template/generateProject.js';
 import { setupGradle } from './gradle/setupGradle.js';
 import { AddonManager } from './template/addonManager.js';
+import { VersionResolver } from './utils/versionResolver.js';
+import { CONSTANTS } from './utils/constants.js';
 import path from 'path';
 import fs from 'fs-extra';
 export async function run(args) {
@@ -115,7 +117,21 @@ async function handleInstall(pkgName) {
         process.exit(1);
     }
     const packageName = namespaceMatch[1];
-    const addonManager = new AddonManager(projectPath, moduleName, packageName);
+    // Resolve versions for addons
+    const artifacts = {
+        'KOTLIN_VERSION': { group: 'org.jetbrains.kotlin', name: 'kotlin-gradle-plugin' },
+        'RETROFIT_VERSION': { group: 'com.squareup.retrofit2', name: 'retrofit' },
+        'KTOR_VERSION': { group: 'io.ktor', name: 'ktor-client-core' },
+    };
+    const resolvedMaven = await VersionResolver.resolveAll(artifacts);
+    const remoteDefaults = await VersionResolver.getRemoteDefaults();
+    const versions = {};
+    for (const key of Object.keys(artifacts)) {
+        versions[key] = resolvedMaven[key] || remoteDefaults[key] || CONSTANTS.DEFAULTS[key];
+    }
+    const kotlinVersion = versions['KOTLIN_VERSION'];
+    versions['KSP_VERSION'] = await VersionResolver.getLatestKspVersion(kotlinVersion) || `${kotlinVersion}-1.0.29`;
+    const addonManager = new AddonManager(projectPath, moduleName, packageName, versions);
     if (!pkgName) {
         // Interactive selection if no package name provided
         const response = await prompts({

@@ -20,7 +20,12 @@ export interface AddonRecipe {
 }
 
 export class AddonManager {
-    constructor(private projectPath: string, private moduleName: string, private packageName: string) {}
+    constructor(
+        private projectPath: string, 
+        private moduleName: string, 
+        private packageName: string,
+        private versions: Record<string, string> = {}
+    ) {}
 
     async install(recipeName: string) {
         const recipe = await this.resolveRecipe(recipeName);
@@ -39,11 +44,26 @@ export class AddonManager {
 
         for (const step of recipe.steps) {
             try {
-                await this.executeStep(step);
+                // Apply version patches to step values
+                const patchedStep = { ...step };
+                if (patchedStep.value) patchedStep.value = this.applyPatches(patchedStep.value);
+                if (patchedStep.replacement) patchedStep.replacement = this.applyPatches(patchedStep.replacement);
+                if (patchedStep.content) patchedStep.content = this.applyPatches(patchedStep.content);
+
+                await this.executeStep(patchedStep);
             } catch (e: any) {
                 logger.warn(`Failed to execute step for ${recipe.name}: ${e.message}`);
             }
         }
+    }
+
+    private applyPatches(val: string): string {
+        let result = val;
+        for (const [key, version] of Object.entries(this.versions)) {
+            const placeholder = key.startsWith('{{') ? key : `{{${key}}}`;
+            result = result.replaceAll(placeholder, version);
+        }
+        return result;
     }
 
     private async executeStep(step: AddonStep) {
@@ -192,7 +212,7 @@ export const BUILTIN_RECIPES: Record<string, AddonRecipe> = {
         name: 'ksp',
         description: 'Kotlin Symbol Processing',
         steps: [
-            { type: 'toml_version', key: 'ksp', value: '2.1.0-1.0.29' },
+            { type: 'toml_version', key: 'ksp', value: '{{KSP_VERSION}}' },
             { type: 'toml_plugin', key: 'ksp', value: '{ id = "com.google.devtools.ksp", version.ref = "ksp" }' },
             { type: 'gradle_plugin_root', key: 'ksp' },
             { type: 'gradle_plugin_module', key: 'ksp' }
@@ -202,9 +222,9 @@ export const BUILTIN_RECIPES: Record<string, AddonRecipe> = {
         name: 'retrofit',
         description: 'HTTP Client',
         steps: [
-            { type: 'toml_version', key: 'retrofit', value: '2.11.0' },
-            { type: 'toml_library', key: 'retrofit', value: 'com.squareup.retrofit2:retrofit:2.11.0' },
-            { type: 'toml_library', key: 'converter-gson', value: 'com.squareup.retrofit2:converter-gson:2.11.0' },
+            { type: 'toml_version', key: 'retrofit', value: '{{RETROFIT_VERSION}}' },
+            { type: 'toml_library', key: 'retrofit', value: 'com.squareup.retrofit2:retrofit:{{RETROFIT_VERSION}}' },
+            { type: 'toml_library', key: 'converter-gson', value: 'com.squareup.retrofit2:converter-gson:{{RETROFIT_VERSION}}' },
             { type: 'gradle_implementation', value: 'libs.retrofit' },
             { type: 'gradle_implementation', value: 'libs.converter.gson' }
         ]
@@ -213,9 +233,9 @@ export const BUILTIN_RECIPES: Record<string, AddonRecipe> = {
         name: 'ktor',
         description: 'Multiplatform HTTP Client',
         steps: [
-            { type: 'toml_version', key: 'ktor', value: '2.3.11' },
-            { type: 'toml_library', key: 'ktor-client-core', value: 'io.ktor:ktor-client-core:2.3.11' },
-            { type: 'toml_library', key: 'ktor-client-okhttp', value: 'io.ktor:ktor-client-okhttp:2.3.11' },
+            { type: 'toml_version', key: 'ktor', value: '{{KTOR_VERSION}}' },
+            { type: 'toml_library', key: 'ktor-client-core', value: 'io.ktor:ktor-client-core:{{KTOR_VERSION}}' },
+            { type: 'toml_library', key: 'ktor-client-okhttp', value: 'io.ktor:ktor-client-okhttp:{{KTOR_VERSION}}' },
             { type: 'gradle_implementation', value: 'libs.ktor.client.core' },
             { type: 'gradle_implementation', value: 'libs.ktor.client.okhttp' }
         ]
@@ -224,7 +244,7 @@ export const BUILTIN_RECIPES: Record<string, AddonRecipe> = {
         name: 'serialization',
         description: 'Kotlin Serialization',
         steps: [
-            { type: 'toml_plugin', key: 'kotlin-serialization', value: '{ id = "org.jetbrains.kotlin.plugin.serialization", version = "2.1.0" }' },
+            { type: 'toml_plugin', key: 'kotlin-serialization', value: '{ id = "org.jetbrains.kotlin.plugin.serialization", version = "{{KOTLIN_VERSION}}" }' },
             { type: 'toml_library', key: 'kotlinx-serialization-json', value: 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3' },
             { type: 'gradle_plugin_root', key: 'kotlin-serialization' },
             { type: 'gradle_plugin_module', key: 'kotlin-serialization' },

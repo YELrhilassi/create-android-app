@@ -60,11 +60,11 @@ fun StandardCard(index: Int) {
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
             focusedContainerColor = Color.White
         ),
-        shapes = ClickableSurfaceDefaults.shapes(
+        shape = ClickableSurfaceDefaults.shape(
             shape = MaterialTheme.shapes.medium
         )
     ) {
-        Box(contentAlignment = Alignment.Center) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
             Text(
                 text = "Item $index",
                 color = Color.Black
