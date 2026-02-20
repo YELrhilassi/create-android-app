@@ -4,56 +4,9 @@ import { fileURLToPath } from 'url';
 import { execa } from 'execa';
 import { CONSTANTS } from '../utils/constants.js';
 import { logger } from '../utils/logger.js';
+import { AddonManager } from './addonManager.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const LIBRARY_CONFIGS = {
-    coil: {
-        versions: { coil: "2.6.0" },
-        libraries: { 'androidx-coil': 'io.coil-kt:coil-compose:{{coil}}' },
-        implementations: ['libs.androidx.coil']
-    },
-    retrofit: {
-        versions: { retrofit: "2.11.0" },
-        libraries: {
-            'retrofit': 'com.squareup.retrofit2:retrofit:{{retrofit}}',
-            'converter-gson': 'com.squareup.retrofit2:converter-gson:{{retrofit}}'
-        },
-        implementations: ['libs.retrofit', 'libs.converter.gson']
-    },
-    hilt: {
-        versions: { hilt: "2.51.1", ksp: "2.1.0-1.0.29" },
-        plugins: {
-            'hilt': { id: "com.google.dagger.hilt.android", version: "2.51.1" },
-            'ksp': { id: "com.google.devtools.ksp", version: "2.1.0-1.0.29" }
-        },
-        libraries: {
-            'hilt-android': 'com.google.dagger:hilt-android:{{hilt}}',
-            'hilt-compiler': 'com.google.dagger:hilt-compiler:{{hilt}}'
-        },
-        implementations: ['libs.hilt.android'],
-        ksp: ['libs.hilt.compiler']
-    },
-    ktor: {
-        versions: { ktor: "2.3.11" },
-        libraries: {
-            'ktor-client-core': 'io.ktor:ktor-client-core:{{ktor}}',
-            'ktor-client-okhttp': 'io.ktor:ktor-client-okhttp:{{ktor}}',
-            'ktor-client-content-negotiation': 'io.ktor:ktor-client-content-negotiation:{{ktor}}',
-            'ktor-serialization-kotlinx-json': 'io.ktor:ktor-serialization-kotlinx-json:{{ktor}}'
-        },
-        implementations: ['libs.ktor.client.core', 'libs.ktor.client.okhttp', 'libs.ktor.client.content.negotiation', 'libs.ktor.serialization.kotlinx.json']
-    },
-    serialization: {
-        plugins: { 'kotlin-serialization': { id: "org.jetbrains.kotlin.plugin.serialization", version: "2.1.0" } },
-        libraries: { 'kotlinx-serialization-json': 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3' },
-        implementations: ['libs.kotlinx.serialization.json']
-    },
-    datastore: {
-        versions: { datastore: "1.1.1" },
-        libraries: { 'androidx-datastore-preferences': 'androidx.datastore:datastore-preferences:{{datastore}}' },
-        implementations: ['libs.androidx.datastore.preferences']
-    }
-};
 export async function generateProject(options) {
     const { projectPath, projectName, uiType, sdkPath, libraries = [] } = options;
     const isLibrary = uiType === 'compose-library';
@@ -95,8 +48,9 @@ export async function generateProject(options) {
         '{{MIN_SDK}}': CONSTANTS.MIN_SDK.toString(),
         '{{TARGET_SDK}}': CONSTANTS.TARGET_SDK.toString(),
     });
-    if (fs.existsSync(path.join(projectPath, moduleName, 'src/main/res/values/strings.xml'))) {
-        await patchFile(path.join(projectPath, moduleName, 'src/main/res/values/strings.xml'), {
+    const stringsPath = path.join(projectPath, moduleName, 'src/main/res/values/strings.xml');
+    if (fs.existsSync(stringsPath)) {
+        await patchFile(stringsPath, {
             '{{PROJECT_NAME}}': projectName,
         });
     }
@@ -108,9 +62,12 @@ export async function generateProject(options) {
         await patchSourceFiles(newPackagePath, packageName, projectName);
         await cleanEmptyDirs(oldPackagePath);
     }
+    // Use AddonManager for libraries
     if (libraries.length > 0) {
-        logger.info(`Installing selected libraries...`);
-        await injectLibraries(projectPath, moduleName, libraries, packageName);
+        const addonManager = new AddonManager(projectPath, moduleName, packageName);
+        for (const lib of libraries) {
+            await addonManager.install(lib);
+        }
     }
     const localProperties = `sdk.dir=${sdkPath}\n`;
     await fs.writeFile(path.join(projectPath, 'local.properties'), localProperties);
@@ -137,7 +94,8 @@ export async function generateProject(options) {
             "adb:connect": "npm run adb connect",
             "adb:pair": "npm run adb pair",
             "adb:logcat": "npm run adb logcat",
-            "adb:reverse": "npm run adb reverse tcp:8081 tcp:8081"
+            "adb:reverse": "npm run adb reverse tcp:8081 tcp:8081",
+            "add": "npx create-droid install"
         }
     };
     await fs.writeJSON(path.join(projectPath, 'package.json'), packageJson, { spaces: 2 });
@@ -151,115 +109,6 @@ export async function generateProject(options) {
     catch (e) {
         logger.warn('Failed to initialize git repository.');
     }
-}
-async function injectLibraries(projectPath, moduleName, selected, packageName) {
-    const tomlPath = path.join(projectPath, 'gradle', 'libs.versions.toml');
-    const buildFile = path.join(projectPath, moduleName, 'build.gradle.kts');
-    const rootBuildFile = path.join(projectPath, 'build.gradle.kts');
-    const manifestFile = path.join(projectPath, moduleName, 'src/main/AndroidManifest.xml');
-    let toml = await fs.readFile(tomlPath, 'utf-8');
-    let build = await fs.readFile(buildFile, 'utf-8');
-    let rootBuild = await fs.readFile(rootBuildFile, 'utf-8');
-    for (const libId of selected) {
-        const config = LIBRARY_CONFIGS[libId];
-        if (!config)
-            continue;
-        if (config.versions) {
-            for (const [vId, vVal] of Object.entries(config.versions)) {
-                if (!toml.includes(`${vId} =`)) {
-                    toml = toml.replace('[versions]', `[versions]\n${vId} = "${vVal}"`);
-                }
-            }
-        }
-        if (config.libraries) {
-            for (const [lId, lVal] of Object.entries(config.libraries)) {
-                if (!toml.includes(`${lId} =`)) {
-                    let valStr = toToml(lVal);
-                    if (typeof lVal === 'string') {
-                        valStr = valStr.replace(/\{\{([^}]+)\}\}/g, (_, p1) => config.versions?.[p1] || p1);
-                    }
-                    toml = toml.replace('[libraries]', `[libraries]\n${lId} = ${valStr}`);
-                }
-            }
-        }
-        if (config.plugins) {
-            for (const [pId, pVal] of Object.entries(config.plugins)) {
-                if (!toml.includes(`${pId} =`)) {
-                    toml = toml.replace('[plugins]', `[plugins]\n${pId} = ${toToml(pVal)}`);
-                    const pluginAlias = pId.replace(/-/g, '.');
-                    if (!rootBuild.includes(`alias(libs.plugins.${pluginAlias})`)) {
-                        rootBuild = rootBuild.replace('plugins {', `plugins {\n    alias(libs.plugins.${pluginAlias}) apply false`);
-                    }
-                    if (!build.includes(`alias(libs.plugins.${pluginAlias})`)) {
-                        build = build.replace('plugins {', `plugins {\n    alias(libs.plugins.${pluginAlias})`);
-                    }
-                }
-            }
-        }
-        if (config.implementations) {
-            let depsInject = '';
-            for (const imp of config.implementations) {
-                if (!build.includes(imp)) {
-                    depsInject += `    implementation(${imp})\n`;
-                }
-            }
-            build = build.replace('dependencies {', `dependencies {\n${depsInject}`);
-        }
-        if (config.ksp) {
-            let depsInject = '';
-            for (const imp of config.ksp) {
-                if (!build.includes(`ksp(${imp})`)) {
-                    depsInject += `    ksp(${imp})\n`;
-                }
-            }
-            build = build.replace('dependencies {', `dependencies {\n${depsInject}`);
-        }
-        // Specific Hilt setup
-        if (libId === 'hilt') {
-            await configureHilt(projectPath, moduleName, packageName, manifestFile);
-        }
-    }
-    await fs.writeFile(tomlPath, toml);
-    await fs.writeFile(buildFile, build);
-    await fs.writeFile(rootBuildFile, rootBuild);
-}
-async function configureHilt(projectPath, moduleName, packageName, manifestFile) {
-    const srcBase = path.join(projectPath, moduleName, 'src/main/kotlin', ...packageName.split('.'));
-    const appClassPath = path.join(srcBase, 'MainApplication.kt');
-    // 1. Create Application Class
-    const appClassContent = `package ${packageName}
-
-import android.app.Application
-import dagger.hilt.android.HiltAndroidApp
-
-@HiltAndroidApp
-class MainApplication : Application()
-`;
-    await fs.writeFile(appClassPath, appClassContent);
-    // 2. Patch AndroidManifest
-    if (fs.existsSync(manifestFile)) {
-        let manifest = await fs.readFile(manifestFile, 'utf-8');
-        if (!manifest.includes('android:name=".MainApplication"')) {
-            manifest = manifest.replace('<application', '<application\n        android:name=".MainApplication"');
-            await fs.writeFile(manifestFile, manifest);
-        }
-    }
-    // 3. Patch MainActivity
-    const mainActivityPath = path.join(srcBase, 'MainActivity.kt');
-    if (fs.existsSync(mainActivityPath)) {
-        let content = await fs.readFile(mainActivityPath, 'utf-8');
-        if (!content.includes('@AndroidEntryPoint')) {
-            content = content.replace('import android.os.Bundle', 'import android.os.Bundle\nimport dagger.hilt.android.AndroidEntryPoint');
-            content = content.replace('class MainActivity', '@AndroidEntryPoint\nclass MainActivity');
-            await fs.writeFile(mainActivityPath, content);
-        }
-    }
-}
-function toToml(val) {
-    if (typeof val === 'string')
-        return `"${val}"`;
-    const entries = Object.entries(val).map(([k, v]) => `${k} = "${v}"`);
-    return `{ ${entries.join(', ')} }`;
 }
 async function patchFile(filePath, replacements) {
     if (!fs.existsSync(filePath))
