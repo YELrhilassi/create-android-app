@@ -1,4 +1,4 @@
-// The "Truth" - Pinned versions for stability
+// The "Truth" - Pinned versions for stability (and fallbacks)
 
 export const CONSTANTS = {
   // Tooling
@@ -16,14 +16,26 @@ export const CONSTANTS = {
     "cmdline-tools;latest"
   ],
 
-  // Template Defaults
-  COMPILE_SDK: 35,
-  TARGET_SDK: 35,
-  MIN_SDK: 24,
-  KOTLIN_VERSION: "2.1.0",
-  COMPOSE_COMPILER_EXTENSION_VERSION: "1.5.14", 
-  AGP_VERSION: "8.8.0",
-  
-  // Gradle
-  GRADLE_VERSION: "8.12"
+  // Default dependency versions (used as fallbacks if resolution fails)
+  DEFAULTS: {
+    AGP_VERSION: "8.8.0",
+    KOTLIN_VERSION: "2.1.0",
+    CORE_KTX_VERSION: "1.15.0",
+    JUNIT_VERSION: "4.13.2",
+    JUNIT_ANDROIDX_VERSION: "1.2.1",
+    ESPRESSO_CORE_VERSION: "3.6.1",
+    LIFECYCLE_RUNTIME_KTX_VERSION: "2.8.7",
+    ACTIVITY_COMPOSE_VERSION: "1.10.0",
+    COMPOSE_BOM_VERSION: "2025.02.00",
+    APPCOMPAT_VERSION: "1.7.0",
+    MATERIAL_VERSION: "1.12.0",
+    NAVIGATION_COMPOSE_VERSION: "2.8.7",
+    TV_FOUNDATION_VERSION: "1.0.0-alpha12",
+    TV_MATERIAL_VERSION: "1.0.0",
+    CONSTRAINTLAYOUT_VERSION: "2.2.0",
+    COMPILE_SDK: "35",
+    TARGET_SDK: "35",
+    MIN_SDK: "24",
+    GRADLE_VERSION: "8.12",
+  }
 };

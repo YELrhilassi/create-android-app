@@ -5,6 +5,7 @@ import { execa } from 'execa';
 import { CONSTANTS } from '../utils/constants.js';
 import { logger } from '../utils/logger.js';
 import { AddonManager } from './addonManager.js';
+import { VersionResolver } from '../utils/versionResolver.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 export async function generateProject(options) {
@@ -12,6 +13,32 @@ export async function generateProject(options) {
     const isLibrary = uiType === 'compose-library';
     const moduleName = isLibrary ? 'library' : 'app';
     await fs.ensureDir(projectPath);
+    logger.info("Resolving dependency versions...");
+    const artifacts = {
+        'AGP_VERSION': { group: 'com.android.tools.build', name: 'gradle' },
+        'KOTLIN_VERSION': { group: 'org.jetbrains.kotlin', name: 'kotlin-gradle-plugin' },
+        'CORE_KTX_VERSION': { group: 'androidx.core', name: 'core-ktx' },
+        'JUNIT_VERSION': { group: 'junit', name: 'junit' },
+        'JUNIT_ANDROIDX_VERSION': { group: 'androidx.test.ext', name: 'junit' },
+        'ESPRESSO_CORE_VERSION': { group: 'androidx.test.espresso', name: 'espresso-core' },
+        'LIFECYCLE_RUNTIME_KTX_VERSION': { group: 'androidx.lifecycle', name: 'lifecycle-runtime-ktx' },
+        'ACTIVITY_COMPOSE_VERSION': { group: 'androidx.activity', name: 'activity-compose' },
+        'COMPOSE_BOM_VERSION': { group: 'androidx.compose', name: 'compose-bom' },
+        'APPCOMPAT_VERSION': { group: 'androidx.appcompat', name: 'appcompat' },
+        'MATERIAL_VERSION': { group: 'com.google.android.material', name: 'material' },
+        'NAVIGATION_COMPOSE_VERSION': { group: 'androidx.navigation', name: 'navigation-compose' },
+        'TV_FOUNDATION_VERSION': { group: 'androidx.tv', name: 'tv-foundation', stableOnly: false },
+        'TV_MATERIAL_VERSION': { group: 'androidx.tv', name: 'tv-material', stableOnly: false },
+        'CONSTRAINTLAYOUT_VERSION': { group: 'androidx.constraintlayout', name: 'constraintlayout' },
+    };
+    const resolvedMaven = await VersionResolver.resolveAll(artifacts);
+    const remoteDefaults = await VersionResolver.getRemoteDefaults();
+    const versionPatches = {};
+    const allKeys = [...Object.keys(artifacts), 'COMPILE_SDK', 'TARGET_SDK', 'MIN_SDK', 'GRADLE_VERSION'];
+    for (const key of allKeys) {
+        const value = resolvedMaven[key] || remoteDefaults[key] || CONSTANTS.DEFAULTS[key];
+        versionPatches[`{{${key}}}`] = value;
+    }
     const templateRoot = path.resolve(__dirname, '../../templates');
     const baseTemplate = path.join(templateRoot, 'base');
     const uiTemplate = path.join(templateRoot, uiType);
@@ -41,12 +68,12 @@ export async function generateProject(options) {
         '{{PROJECT_NAME}}': projectName,
         'include(":app")': `include(":${moduleName}")`
     });
+    await patchFile(path.join(projectPath, 'gradle', 'libs.versions.toml'), versionPatches);
+    await patchFile(path.join(projectPath, 'gradle', 'wrapper', 'gradle-wrapper.properties'), versionPatches);
     const moduleBuildFile = path.join(projectPath, moduleName, 'build.gradle.kts');
     await patchFile(moduleBuildFile, {
         '{{APPLICATION_ID}}': packageName,
-        '{{COMPILE_SDK}}': CONSTANTS.COMPILE_SDK.toString(),
-        '{{MIN_SDK}}': CONSTANTS.MIN_SDK.toString(),
-        '{{TARGET_SDK}}': CONSTANTS.TARGET_SDK.toString(),
+        ...versionPatches
     });
     const stringsPath = path.join(projectPath, moduleName, 'src/main/res/values/strings.xml');
     if (fs.existsSync(stringsPath)) {
