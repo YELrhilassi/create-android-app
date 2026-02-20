@@ -35,8 +35,13 @@ export async function generateProject(options) {
     const remoteDefaults = await VersionResolver.getRemoteDefaults();
     const versionPatches = {};
     const allKeys = [...Object.keys(artifacts), 'COMPILE_SDK', 'TARGET_SDK', 'MIN_SDK', 'GRADLE_VERSION'];
+    // Critical build infrastructure keys - prefer GitHub (vetted) over Maven (latest)
+    const buildInfraKeys = ['AGP_VERSION', 'KOTLIN_VERSION', 'GRADLE_VERSION', 'COMPILE_SDK', 'TARGET_SDK', 'MIN_SDK'];
     for (const key of allKeys) {
-        const value = resolvedMaven[key] || remoteDefaults[key] || CONSTANTS.DEFAULTS[key];
+        const isBuildInfra = buildInfraKeys.includes(key);
+        const value = isBuildInfra
+            ? (remoteDefaults[key] || resolvedMaven[key] || CONSTANTS.DEFAULTS[key])
+            : (resolvedMaven[key] || remoteDefaults[key] || CONSTANTS.DEFAULTS[key]);
         versionPatches[`{{${key}}}`] = value;
     }
     const templateRoot = path.resolve(__dirname, '../../templates');
