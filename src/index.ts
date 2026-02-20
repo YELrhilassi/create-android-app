@@ -9,6 +9,7 @@ import path from 'path';
 import fs from 'fs-extra';
 
 export async function run(args: string[]) {
+  console.log('Debug: run started with args:', args);
   const command = args[0];
 
   if (command === 'install' || command === 'add') {
@@ -21,17 +22,20 @@ export async function run(args: string[]) {
 
   // 1. Collect Input
   let targetDir = args[0];
+  let uiTypeArg = args.find((_, i) => args[i-1] === '--ui' || args[i-1] === '--template');
+  let skipPrompts = args.includes('-y') || args.includes('--yes');
+
   const defaultProjectName = targetDir || 'android-app';
 
   const response = await prompts([
     {
-      type: targetDir ? null : 'text',
+      type: (targetDir && skipPrompts) ? null : 'text',
       name: 'projectName',
       message: 'Project name:',
       initial: defaultProjectName
     },
     {
-      type: 'select',
+      type: (uiTypeArg && skipPrompts) ? null : 'select',
       name: 'uiType',
       message: 'Select Template:',
       choices: [
@@ -44,7 +48,7 @@ export async function run(args: string[]) {
       initial: 0
     },
     {
-        type: 'multiselect',
+        type: skipPrompts ? null : 'multiselect',
         name: 'libraries',
         message: 'Select Additional Libraries:',
         choices: [
@@ -65,10 +69,12 @@ export async function run(args: string[]) {
     }
   });
 
-  const projectName = response.projectName || targetDir;
+  const projectName = response.projectName || targetDir || defaultProjectName;
   const projectPath = path.resolve(process.cwd(), projectName);
-  const uiType = response.uiType;
+  const uiType = response.uiType || uiTypeArg || 'compose';
   const selectedLibs = response.libraries || [];
+
+  console.log(`Debug: projectName=${projectName}, projectPath=${projectPath}, uiType=${uiType}`);
 
   // 2. Validate Environment
   logger.step('Checking Environment...');

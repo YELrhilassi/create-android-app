@@ -50,13 +50,15 @@ export async function generateProject(options: ProjectOptions) {
   const versionPatches: Record<string, string> = {};
   const allKeys = [...Object.keys(artifacts), 'COMPILE_SDK', 'TARGET_SDK', 'MIN_SDK', 'GRADLE_VERSION'];
   
-  // Critical build infrastructure keys - prefer GitHub (vetted) over Maven (latest)
-  const buildInfraKeys = ['AGP_VERSION', 'KOTLIN_VERSION', 'GRADLE_VERSION', 'COMPILE_SDK', 'TARGET_SDK', 'MIN_SDK'];
+  // Critical build infrastructure keys - ALWAYS prefer GitHub (vetted) or Local Fallback
+  const buildInfraKeys = ['AGP_VERSION', 'KOTLIN_VERSION', 'GRADLE_VERSION', 'COMPILE_SDK', 'TARGET_SDK', 'MIN_SDK', 
+                         'CORE_KTX_VERSION', 'ACTIVITY_COMPOSE_VERSION', 'APPCOMPAT_VERSION', 'MATERIAL_VERSION', 
+                         'NAVIGATION_COMPOSE_VERSION', 'LIFECYCLE_RUNTIME_KTX_VERSION'];
 
   for (const key of allKeys) {
       const isBuildInfra = buildInfraKeys.includes(key);
       const value = isBuildInfra 
-          ? (remoteDefaults[key] || resolvedMaven[key] || (CONSTANTS.DEFAULTS as any)[key])
+          ? (remoteDefaults[key] || (CONSTANTS.DEFAULTS as any)[key]) // Ignore Maven for infra
           : (resolvedMaven[key] || remoteDefaults[key] || (CONSTANTS.DEFAULTS as any)[key]);
           
       versionPatches[`{{${key}}}`] = value;
