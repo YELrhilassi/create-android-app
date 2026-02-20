@@ -95,7 +95,17 @@ export class AddonManager {
         if (!fs.existsSync(filePath)) return;
         let content = await fs.readFile(filePath, 'utf-8');
         const key = line.split('=')[0].trim();
-        if (content.includes(`${key} =`)) return;
+        
+        const sectionIndex = content.indexOf(section);
+        if (sectionIndex === -1) return;
+        
+        const nextSectionIndex = content.indexOf('[', sectionIndex + section.length);
+        const sectionContent = nextSectionIndex === -1 
+            ? content.substring(sectionIndex) 
+            : content.substring(sectionIndex, nextSectionIndex);
+            
+        const keyRegex = new RegExp(`^${key}\\s*=`, 'm');
+        if (keyRegex.test(sectionContent)) return;
 
         content = content.replace(section, `${section}\n${line}`);
         await fs.writeFile(filePath, content);
@@ -118,7 +128,6 @@ export class AddonManager {
     private async resolveRecipe(name: string): Promise<AddonRecipe | null> {
         if (BUILTIN_RECIPES[name]) return BUILTIN_RECIPES[name];
         
-        // Try to fetch from remote (e.g., GitHub raw)
         try {
             const url = `https://raw.githubusercontent.com/YELrhilassi/create-android-app/main/addons/${name}.json`;
             const response = await fetch(url);
