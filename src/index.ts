@@ -96,6 +96,7 @@ export async function run(args: string[]) {
   logger.info('To get started:');
   console.log(`  cd ${projectName}`);
   console.log(`  ./gradlew installDebug`);
+  console.log(`  npm run add  # to add more libraries`);
 }
 
 async function handleInstall(pkgName: string | undefined) {

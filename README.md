@@ -28,9 +28,9 @@ Modern web developers are used to tools like `create-react-app` or `vite` – si
 Simply run:
 
 ```bash
-npm create droid my-app
+npm create droid@latest my-app
 # or
-npx create-droid my-app
+npx create-droid@latest my-app
 ```
 
 Follow the interactive prompts:
@@ -41,6 +41,7 @@ Follow the interactive prompts:
     *   **Compose for TV**: Optimized for Android TV with `tv-material`.
     *   **Compose Library**: Foundation for publishing reusable UI components.
     *   **XML Views (Legacy)**: For maintenance or classic development.
+3.  **Addon Selection**: Proactively install Hilt, Room, Retrofit, Coil, and more.
 
 ### After Scaffolding
 
@@ -51,8 +52,8 @@ cd my-app
 # Edits will auto-compile and install on your connected device!
 npm run dev
 
-# Or build manually
-npm run build
+# Add more libraries later
+npm run add
 ```
 
 ## What's Inside?

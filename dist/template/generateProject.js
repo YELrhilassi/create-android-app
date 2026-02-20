@@ -95,7 +95,7 @@ export async function generateProject(options) {
             "adb:pair": "npm run adb pair",
             "adb:logcat": "npm run adb logcat",
             "adb:reverse": "npm run adb reverse tcp:8081 tcp:8081",
-            "add": "npx create-droid install"
+            "add": "npx create-droid@latest install"
         }
     };
     await fs.writeJSON(path.join(projectPath, 'package.json'), packageJson, { spaces: 2 });
