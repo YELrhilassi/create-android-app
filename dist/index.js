@@ -37,6 +37,7 @@ export async function run(args) {
             choices: [
                 { title: 'Coil', value: 'coil', description: 'Image loading for Compose' },
                 { title: 'Retrofit', value: 'retrofit', description: 'Type-safe HTTP client' },
+                { title: 'Hilt', value: 'hilt', description: 'Dependency Injection (includes KSP & App setup)' },
                 { title: 'Ktor Client', value: 'ktor', description: 'Multiplatform HTTP client' },
                 { title: 'Kotlinx Serialization', value: 'serialization', description: 'Kotlin JSON serialization' },
                 { title: 'DataStore', value: 'datastore', description: 'Modern alternative to SharedPreferences' }

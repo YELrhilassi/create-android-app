@@ -20,6 +20,19 @@ const LIBRARY_CONFIGS = {
         },
         implementations: ['libs.retrofit', 'libs.converter.gson']
     },
+    hilt: {
+        versions: { hilt: "2.51.1", ksp: "2.1.0-1.0.29" },
+        plugins: {
+            'hilt': { id: "com.google.dagger.hilt.android", version: "2.51.1" },
+            'ksp': { id: "com.google.devtools.ksp", version: "2.1.0-1.0.29" }
+        },
+        libraries: {
+            'hilt-android': 'com.google.dagger:hilt-android:{{hilt}}',
+            'hilt-compiler': 'com.google.dagger:hilt-compiler:{{hilt}}'
+        },
+        implementations: ['libs.hilt.android'],
+        ksp: ['libs.hilt.compiler']
+    },
     ktor: {
         versions: { ktor: "2.3.11" },
         libraries: {
@@ -97,7 +110,7 @@ export async function generateProject(options) {
     }
     if (libraries.length > 0) {
         logger.info(`Installing selected libraries...`);
-        await injectLibraries(projectPath, moduleName, libraries);
+        await injectLibraries(projectPath, moduleName, libraries, packageName);
     }
     const localProperties = `sdk.dir=${sdkPath}\n`;
     await fs.writeFile(path.join(projectPath, 'local.properties'), localProperties);
@@ -139,10 +152,11 @@ export async function generateProject(options) {
         logger.warn('Failed to initialize git repository.');
     }
 }
-async function injectLibraries(projectPath, moduleName, selected) {
+async function injectLibraries(projectPath, moduleName, selected, packageName) {
     const tomlPath = path.join(projectPath, 'gradle', 'libs.versions.toml');
     const buildFile = path.join(projectPath, moduleName, 'build.gradle.kts');
     const rootBuildFile = path.join(projectPath, 'build.gradle.kts');
+    const manifestFile = path.join(projectPath, moduleName, 'src/main/AndroidManifest.xml');
     let toml = await fs.readFile(tomlPath, 'utf-8');
     let build = await fs.readFile(buildFile, 'utf-8');
     let rootBuild = await fs.readFile(rootBuildFile, 'utf-8');
@@ -191,10 +205,55 @@ async function injectLibraries(projectPath, moduleName, selected) {
             }
             build = build.replace('dependencies {', `dependencies {\n${depsInject}`);
         }
+        if (config.ksp) {
+            let depsInject = '';
+            for (const imp of config.ksp) {
+                if (!build.includes(`ksp(${imp})`)) {
+                    depsInject += `    ksp(${imp})\n`;
+                }
+            }
+            build = build.replace('dependencies {', `dependencies {\n${depsInject}`);
+        }
+        // Specific Hilt setup
+        if (libId === 'hilt') {
+            await configureHilt(projectPath, moduleName, packageName, manifestFile);
+        }
     }
     await fs.writeFile(tomlPath, toml);
     await fs.writeFile(buildFile, build);
     await fs.writeFile(rootBuildFile, rootBuild);
+}
+async function configureHilt(projectPath, moduleName, packageName, manifestFile) {
+    const srcBase = path.join(projectPath, moduleName, 'src/main/kotlin', ...packageName.split('.'));
+    const appClassPath = path.join(srcBase, 'MainApplication.kt');
+    // 1. Create Application Class
+    const appClassContent = `package ${packageName}
+
+import android.app.Application
+import dagger.hilt.android.HiltAndroidApp
+
+@HiltAndroidApp
+class MainApplication : Application()
+`;
+    await fs.writeFile(appClassPath, appClassContent);
+    // 2. Patch AndroidManifest
+    if (fs.existsSync(manifestFile)) {
+        let manifest = await fs.readFile(manifestFile, 'utf-8');
+        if (!manifest.includes('android:name=".MainApplication"')) {
+            manifest = manifest.replace('<application', '<application\n        android:name=".MainApplication"');
+            await fs.writeFile(manifestFile, manifest);
+        }
+    }
+    // 3. Patch MainActivity
+    const mainActivityPath = path.join(srcBase, 'MainActivity.kt');
+    if (fs.existsSync(mainActivityPath)) {
+        let content = await fs.readFile(mainActivityPath, 'utf-8');
+        if (!content.includes('@AndroidEntryPoint')) {
+            content = content.replace('import android.os.Bundle', 'import android.os.Bundle\nimport dagger.hilt.android.AndroidEntryPoint');
+            content = content.replace('class MainActivity', '@AndroidEntryPoint\nclass MainActivity');
+            await fs.writeFile(mainActivityPath, content);
+        }
+    }
 }
 function toToml(val) {
     if (typeof val === 'string')
