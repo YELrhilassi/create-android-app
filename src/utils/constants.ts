@@ -11,19 +11,19 @@ export const CONSTANTS = {
   
   SDK_PACKAGES: [
     "platform-tools",
-    "platforms;android-34",
-    "build-tools;34.0.0",
+    "platforms;android-35",
+    "build-tools;35.0.0",
     "cmdline-tools;latest"
   ],
 
   // Template Defaults
-  COMPILE_SDK: 34,
-  TARGET_SDK: 34,
+  COMPILE_SDK: 35,
+  TARGET_SDK: 35,
   MIN_SDK: 24,
-  KOTLIN_VERSION: "1.9.23",
-  COMPOSE_COMPILER_EXTENSION_VERSION: "1.5.11", 
-  AGP_VERSION: "8.3.2",
+  KOTLIN_VERSION: "2.1.0",
+  COMPOSE_COMPILER_EXTENSION_VERSION: "1.5.14", 
+  AGP_VERSION: "8.8.0",
   
   // Gradle
-  GRADLE_VERSION: "8.7"
+  GRADLE_VERSION: "8.12"
 };

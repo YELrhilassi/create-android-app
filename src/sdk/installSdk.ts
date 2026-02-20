@@ -35,9 +35,6 @@ export async function installSdk(): Promise<string> {
   }
 
   // 3. Accept Licenses (Robust Approach: File Injection)
-  // Instead of piping 'yes', we write known hashes.
-  // These hashes correspond to standard Android SDK licenses.
-  // Source: common knowledge in Android community + verification.
   const licensesDir = path.join(sdkPath, 'licenses');
   await fs.ensureDir(licensesDir);
 
@@ -45,6 +42,7 @@ export async function installSdk(): Promise<string> {
     '8933bad161af4178b1185d1a37fbf41ea5269c55',
     'd56f5187479451eabf01fb78af6dfcb131a6481e',
     '24333f8a63b6825ea9c5514f83c2829b004d1fee',
+    '45f7d2194635848e3d6409be4d33ca24d6232258',
   ].join('\n');
 
   const androidSdkPreviewLicense = '84831b9409646a918e30573bab4c9c91346d8abd';
@@ -58,22 +56,20 @@ export async function installSdk(): Promise<string> {
   const packages = CONSTANTS.SDK_PACKAGES;
   
   try {
-    // With licenses pre-accepted, we just run sdkmanager directly.
-    // Use --verbose to verify output if needed, but keep it clean for user unless debug.
-    
-    // Check if packages are already installed to skip slow process?
-    // sdkmanager is slow. If platforms/android-34 exists, maybe skip?
-    const platformCheck = path.join(sdkPath, 'platforms', 'android-34');
-    const buildToolsCheck = path.join(sdkPath, 'build-tools', '34.0.0');
+    // Determine platform and build-tools version from CONSTANTS
+    const platformMatch = CONSTANTS.SDK_PACKAGES.find(p => p.startsWith('platforms;android-'))?.split('-')[1];
+    const buildToolsMatch = CONSTANTS.SDK_PACKAGES.find(p => p.startsWith('build-tools;'))?.split(';')[1];
 
-    if (fs.existsSync(platformCheck) && fs.existsSync(buildToolsCheck)) {
+    const platformCheck = platformMatch ? path.join(sdkPath, 'platforms', `android-${platformMatch}`) : null;
+    const buildToolsCheck = buildToolsMatch ? path.join(sdkPath, 'build-tools', buildToolsMatch) : null;
+
+    if (platformCheck && buildToolsCheck && fs.existsSync(platformCheck) && fs.existsSync(buildToolsCheck)) {
         logger.success('SDK packages appear to be installed. Skipping redundant install.');
     } else {
         await execa(sdkManagerPath, [`--sdk_root=${sdkPath}`, ...packages], {
-            stdio: 'inherit', // Let user see progress bars from sdkmanager
+            stdio: 'inherit',
             env: {
                 ANDROID_HOME: sdkPath,
-                // Ensure JAVA_HOME is picked up if set, usually execa inherits env
             }
         });
         logger.success('SDK packages installed.');
@@ -81,7 +77,7 @@ export async function installSdk(): Promise<string> {
   } catch (e: any) {
     logger.error('Failed to install SDK packages.');
     logger.error(e.message);
-    throw e; // Fail hard if SDK setup fails
+    throw e;
   }
 
   return sdkPath;
@@ -102,24 +98,19 @@ async function downloadCmdlineTools(sdkPath: string, targetDir: string, isMac: b
   
   logger.info('Extracting (using adm-zip)...');
   
-  // Extract to temp folder
   const tempDir = path.join(sdkPath, 'temp_extract');
   await fs.ensureDir(tempDir);
   
   const zip = new AdmZip(zipPath);
-  zip.extractAllTo(tempDir, true); // overwrite: true
+  zip.extractAllTo(tempDir, true);
 
-  // Structure: tempDir/cmdline-tools/...
-  // We need to find the root folder inside tempDir
   const extractedContents = await fs.readdir(tempDir);
   const rootFolder = extractedContents.find(f => fs.statSync(path.join(tempDir, f)).isDirectory());
   
   if (!rootFolder) throw new Error('Unknown zip structure');
   
-  const source = path.join(tempDir, rootFolder); // usually 'cmdline-tools'
+  const source = path.join(tempDir, rootFolder);
   
-  // Move to targetDir (which is sdk/cmdline-tools/latest)
-  // Ensure parent exists
   await fs.ensureDir(path.dirname(targetDir));
   
   if (fs.existsSync(targetDir)) {
@@ -128,7 +119,6 @@ async function downloadCmdlineTools(sdkPath: string, targetDir: string, isMac: b
   
   await fs.move(source, targetDir);
   
-  // Cleanup
   await fs.remove(tempDir);
   await fs.remove(zipPath);
 }

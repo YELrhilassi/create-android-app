@@ -10,44 +10,75 @@ interface ProjectOptions {
   projectName: string;
   uiType: 'compose' | 'views' | 'mobile-compose-navigation' | 'tv-compose' | 'compose-library';
   sdkPath: string;
+  libraries?: string[];
 }
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const LIBRARY_CONFIGS: Record<string, any> = {
+    coil: {
+        versions: { coil: "2.6.0" },
+        libraries: { 'androidx-coil': 'io.coil-kt:coil-compose:{{coil}}' },
+        implementations: ['libs.androidx.coil']
+    },
+    retrofit: {
+        versions: { retrofit: "2.11.0" },
+        libraries: { 
+            'retrofit': 'com.squareup.retrofit2:retrofit:{{retrofit}}',
+            'converter-gson': 'com.squareup.retrofit2:converter-gson:{{retrofit}}'
+        },
+        implementations: ['libs.retrofit', 'libs.converter.gson']
+    },
+    ktor: {
+        versions: { ktor: "2.3.11" },
+        libraries: { 
+            'ktor-client-core': 'io.ktor:ktor-client-core:{{ktor}}',
+            'ktor-client-okhttp': 'io.ktor:ktor-client-okhttp:{{ktor}}',
+            'ktor-client-content-negotiation': 'io.ktor:ktor-client-content-negotiation:{{ktor}}',
+            'ktor-serialization-kotlinx-json': 'io.ktor:ktor-serialization-kotlinx-json:{{ktor}}'
+        },
+        implementations: ['libs.ktor.client.core', 'libs.ktor.client.okhttp', 'libs.ktor.client.content.negotiation', 'libs.ktor.serialization.kotlinx.json']
+    },
+    serialization: {
+        plugins: { 'kotlin-serialization': { id: "org.jetbrains.kotlin.plugin.serialization", version: "2.1.0" } },
+        libraries: { 'kotlinx-serialization-json': 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3' },
+        implementations: ['libs.kotlinx.serialization.json']
+    },
+    datastore: {
+        versions: { datastore: "1.1.1" },
+        libraries: { 'androidx-datastore-preferences': 'androidx.datastore:datastore-preferences:{{datastore}}' },
+        implementations: ['libs.androidx.datastore.preferences']
+    }
+};
+
 export async function generateProject(options: ProjectOptions) {
-  const { projectPath, projectName, uiType, sdkPath } = options;
+  const { projectPath, projectName, uiType, sdkPath, libraries = [] } = options;
   const isLibrary = uiType === 'compose-library';
   const moduleName = isLibrary ? 'library' : 'app';
   
-  // 1. Ensure target directory
   await fs.ensureDir(projectPath);
 
-  // 2. Resolve template paths
   const templateRoot = path.resolve(__dirname, '../../templates');
   const baseTemplate = path.join(templateRoot, 'base');
   const uiTemplate = path.join(templateRoot, uiType);
 
   if (!fs.existsSync(baseTemplate)) {
-    throw new Error(`Template not found at ${baseTemplate}`);
+    throw new Error(`Base template not found at ${baseTemplate}`);
   }
 
-  // 3. Copy Base
-  logger.info(`Copying base template from ${baseTemplate}...`);
+  logger.info(`Copying base template...`);
   await fs.copy(baseTemplate, projectPath);
   
   if (isLibrary) {
-      // Remove default app module if it's a library
       await fs.remove(path.join(projectPath, 'app'));
   }
 
-  // Rename _gitignore to .gitignore
   const gitignorePath = path.join(projectPath, '_gitignore');
   if (fs.existsSync(gitignorePath)) {
       await fs.move(gitignorePath, path.join(projectPath, '.gitignore'));
   }
 
-  // 4. Copy UI specific files
   if (fs.existsSync(uiTemplate)) {
     logger.info(`Applying ${uiType} template...`);
     await fs.copy(uiTemplate, projectPath, { overwrite: true });
@@ -55,18 +86,15 @@ export async function generateProject(options: ProjectOptions) {
       throw new Error(`UI template not found: ${uiType} at ${uiTemplate}`);
   }
 
-  // 5. Patch Configuration
   logger.info(`Patching configuration...`);
-  
-  const packageName = `com.example.${projectName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const safeProjectName = projectName.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/^[0-9]+/, '');
+  const packageName = `com.example.${safeProjectName || 'androidapp'}`;
 
-  // Replace in settings.gradle.kts
   await patchFile(path.join(projectPath, 'settings.gradle.kts'), {
     '{{PROJECT_NAME}}': projectName,
     'include(":app")': `include(":${moduleName}")`
   });
 
-  // Replace in module build.gradle.kts
   const moduleBuildFile = path.join(projectPath, moduleName, 'build.gradle.kts');
   await patchFile(moduleBuildFile, {
     '{{APPLICATION_ID}}': packageName,
@@ -75,39 +103,37 @@ export async function generateProject(options: ProjectOptions) {
     '{{TARGET_SDK}}': CONSTANTS.TARGET_SDK.toString(),
   });
   
-  // Replace in strings.xml
-  const stringsPath = path.join(projectPath, moduleName, 'src/main/res/values/strings.xml');
-  if (fs.existsSync(stringsPath)) {
-      await patchFile(stringsPath, {
+  if (fs.existsSync(path.join(projectPath, moduleName, 'src/main/res/values/strings.xml'))) {
+      await patchFile(path.join(projectPath, moduleName, 'src/main/res/values/strings.xml'), {
         '{{PROJECT_NAME}}': projectName,
       });
   }
 
-  // Handle Source Code Relocation
   const srcBase = path.join(projectPath, moduleName, 'src/main/kotlin');
   const oldPackagePath = path.join(srcBase, 'com/example/template');
   const newPackagePath = path.join(srcBase, ...packageName.split('.'));
 
   if (fs.existsSync(oldPackagePath)) {
     await fs.move(oldPackagePath, newPackagePath, { overwrite: true });
-    
-    // Recursive file patching for package statement
-    await patchSourceFiles(newPackagePath, packageName);
-    
-    // Clean up empty dirs
-    await cleanEmptyDirs(srcBase);
+    await patchSourceFiles(newPackagePath, packageName, projectName);
+    await cleanEmptyDirs(oldPackagePath);
   }
 
-  // Create local.properties with SDK location
-  const localProperties = `sdk.dir=${sdkPath}`;
+  if (libraries.length > 0) {
+      logger.info(`Installing selected libraries...`);
+      await injectLibraries(projectPath, moduleName, libraries);
+  }
+
+  const localProperties = `sdk.dir=${sdkPath}\n`;
   await fs.writeFile(path.join(projectPath, 'local.properties'), localProperties);
 
-  // 6. Setup NPM Scripts
   logger.info('Adding npm convenience scripts...');
   const packageJson = {
     name: projectName.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
     version: "0.1.0",
     private: true,
+    type: "module",
+    license: "MIT",
     scripts: {
       "dev": `./gradlew installDebug --continuous --configuration-cache --parallel --offline`,
       "start": "npm run dev",
@@ -117,7 +143,7 @@ export async function generateProject(options: ProjectOptions) {
       "lint": `./gradlew lint`,
       "clean": `./gradlew clean`,
       "clean:deep": "rm -rf .gradle app/build build library/build",
-      "lsp:sync": `./gradlew :${moduleName}:classes`,
+      "lsp:sync": `./gradlew :${moduleName}:compileDebugKotlin :${moduleName}:classes`,
       "help": `./gradlew --help`,
       "adb": "node scripts/adb.js",
       "adb:devices": "npm run adb devices",
@@ -129,7 +155,6 @@ export async function generateProject(options: ProjectOptions) {
   };
   await fs.writeJSON(path.join(projectPath, 'package.json'), packageJson, { spaces: 2 });
 
-  // 7. Initialize Git
   try {
     logger.info('Initializing git repository...');
     await execa('git', ['init'], { cwd: projectPath });
@@ -141,43 +166,113 @@ export async function generateProject(options: ProjectOptions) {
   }
 }
 
+async function injectLibraries(projectPath: string, moduleName: string, selected: string[]) {
+    const tomlPath = path.join(projectPath, 'gradle', 'libs.versions.toml');
+    const buildFile = path.join(projectPath, moduleName, 'build.gradle.kts');
+    const rootBuildFile = path.join(projectPath, 'build.gradle.kts');
+    
+    let toml = await fs.readFile(tomlPath, 'utf-8');
+    let build = await fs.readFile(buildFile, 'utf-8');
+    let rootBuild = await fs.readFile(rootBuildFile, 'utf-8');
+
+    for (const libId of selected) {
+        const config = LIBRARY_CONFIGS[libId];
+        if (!config) continue;
+
+        if (config.versions) {
+            for (const [vId, vVal] of Object.entries(config.versions)) {
+                if (!toml.includes(`${vId} =`)) {
+                    toml = toml.replace('[versions]', `[versions]\n${vId} = "${vVal}"`);
+                }
+            }
+        }
+
+        if (config.libraries) {
+            for (const [lId, lVal] of Object.entries(config.libraries)) {
+                if (!toml.includes(`${lId} =`)) {
+                    let valStr = toToml(lVal);
+                    if (typeof lVal === 'string') {
+                        valStr = valStr.replace(/\{\{([^}]+)\}\}/g, (_, p1) => config.versions?.[p1] || p1);
+                    }
+                    toml = toml.replace('[libraries]', `[libraries]\n${lId} = ${valStr}`);
+                }
+            }
+        }
+
+        if (config.plugins) {
+            for (const [pId, pVal] of Object.entries(config.plugins)) {
+                if (!toml.includes(`${pId} =`)) {
+                    toml = toml.replace('[plugins]', `[plugins]\n${pId} = ${toToml(pVal)}`);
+                    const pluginAlias = pId.replace(/-/g, '.');
+                    if (!rootBuild.includes(`alias(libs.plugins.${pluginAlias})`)) {
+                        rootBuild = rootBuild.replace('plugins {', `plugins {\n    alias(libs.plugins.${pluginAlias}) apply false`);
+                    }
+                    if (!build.includes(`alias(libs.plugins.${pluginAlias})`)) {
+                        build = build.replace('plugins {', `plugins {\n    alias(libs.plugins.${pluginAlias})`);
+                    }
+                }
+            }
+        }
+
+        if (config.implementations) {
+            let depsInject = '';
+            for (const imp of config.implementations) {
+                if (!build.includes(imp)) {
+                    depsInject += `    implementation(${imp})\n`;
+                }
+            }
+            build = build.replace('dependencies {', `dependencies {\n${depsInject}`);
+        }
+    }
+
+    await fs.writeFile(tomlPath, toml);
+    await fs.writeFile(buildFile, build);
+    await fs.writeFile(rootBuildFile, rootBuild);
+}
+
+function toToml(val: any): string {
+    if (typeof val === 'string') return `"${val}"`;
+    const entries = Object.entries(val).map(([k, v]) => `${k} = "${v}"`);
+    return `{ ${entries.join(', ')} }`;
+}
+
 async function patchFile(filePath: string, replacements: Record<string, string>) {
   if (!fs.existsSync(filePath)) return;
   let content = await fs.readFile(filePath, 'utf-8');
+  let modified = false;
   for (const [key, value] of Object.entries(replacements)) {
-    content = content.replaceAll(key, value);
+    if (content.includes(key)) {
+        content = content.replaceAll(key, value);
+        modified = true;
+    }
   }
-  await fs.writeFile(filePath, content);
+  if (modified) await fs.writeFile(filePath, content);
 }
 
-async function patchSourceFiles(dir: string, packageName: string) {
+async function patchSourceFiles(dir: string, packageName: string, projectName: string) {
     const files = await fs.readdir(dir);
     for (const file of files) {
         const fullPath = path.join(dir, file);
-        const stat = await fs.stat(fullPath);
-        if (stat.isDirectory()) {
-            await patchSourceFiles(fullPath, packageName);
-        } else if (file.endsWith('.kt') || file.endsWith('.java')) {
+        if ((await fs.stat(fullPath)).isDirectory()) {
+            await patchSourceFiles(fullPath, packageName, projectName);
+        } else if (file.endsWith('.kt') || file.endsWith('.java') || file.endsWith('.xml')) {
             await patchFile(fullPath, {
-                '{{PACKAGE_NAME}}': packageName
+                '{{PACKAGE_NAME}}': packageName,
+                '{{PROJECT_NAME}}': projectName,
+                '{{APPLICATION_ID}}': packageName
             });
         }
     }
 }
 
 async function cleanEmptyDirs(dir: string) {
-    const oldPath = path.join(dir, 'com/example/template');
-    try {
-        if (fs.existsSync(oldPath) && (await fs.readdir(oldPath)).length === 0) {
-            await fs.rmdir(oldPath);
-            const parent = path.dirname(oldPath);
-            if ((await fs.readdir(parent)).length === 0) {
-                await fs.rmdir(parent);
-                const grandParent = path.dirname(parent);
-                if ((await fs.readdir(grandParent)).length === 0) {
-                    await fs.rmdir(grandParent);
-                }
-            }
-        }
-    } catch (e) {}
+    let currentDir = dir;
+    while (currentDir && currentDir !== path.dirname(currentDir)) {
+        try {
+            if (fs.existsSync(currentDir) && (await fs.readdir(currentDir)).length === 0) {
+                await fs.remove(currentDir);
+                currentDir = path.dirname(currentDir);
+            } else break;
+        } catch (e) { break; }
+    }
 }

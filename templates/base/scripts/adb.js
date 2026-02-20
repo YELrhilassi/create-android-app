@@ -1,8 +1,12 @@
-const fs = require('fs');
-const path = require('path');
-const { spawn, execSync } = require('child_process');
-const readline = require('readline');
-const os = require('os');
+import fs from 'fs';
+import path from 'path';
+import { spawn, execSync } from 'child_process';
+import readline from 'readline';
+import os from 'os';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // --- Configuration ---
 const projectRoot = path.resolve(__dirname, '..');
@@ -42,11 +46,6 @@ function runCommand(args, inherit = true) {
 async function getMdnsServices() {
     const output = runCommand(['mdns', 'services'], false);
     if (!output) return [];
-    
-    // Output format usually:
-    // List of discovered mdns services
-    // <name> <type> <ip>:<port>
-    // myphone _adb-tls-connect._tcp. 192.168.1.5:38291
     
     const lines = output.split('\n');
     const services = [];

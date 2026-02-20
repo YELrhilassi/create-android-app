@@ -77,15 +77,15 @@ We include a robust `adb` wrapper that works even if `adb` is not in your PATH (
 ```text
 my-app/
 ├── app/
-│   ├── src/main/java/com/example/  # Your Kotlin source code
-│   └── build.gradle.kts            # App module configuration
+│   ├── src/main/kotlin/com/example/  # Your Kotlin source code
+│   └── build.gradle.kts              # App module configuration
 ├── gradle/
-│   └── libs.versions.toml          # Central dependency management
-├── build.gradle.kts                # Root project configuration
-├── settings.gradle.kts             # Module inclusion
-├── gradlew                         # The Gradle wrapper (runs builds)
-└── local.properties                # SDK location (auto-generated)
-```
+│   └── libs.versions.toml            # Central dependency management (Version Catalog)
+├── build.gradle.kts                  # Root project configuration
+├── settings.gradle.kts               # Module inclusion
+├── gradlew                           # The Gradle wrapper (runs builds)
+├── local.properties                  # SDK location (auto-generated)
+└── package.json                      # NPM convenience scripts and project metadata
 
 ## Advanced
 

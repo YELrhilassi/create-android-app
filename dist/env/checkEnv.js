@@ -4,39 +4,53 @@ import { logger } from '../utils/logger.js';
 export async function checkEnv() {
     // 1. Check Node
     const nodeVersion = process.version;
-    if (!nodeVersion.startsWith('v' + CONSTANTS.NODE_VERSION_REQ) && parseInt(nodeVersion.substring(1)) < CONSTANTS.NODE_VERSION_REQ) {
+    const majorNodeVersion = parseInt(nodeVersion.replace(/^v/, ''), 10);
+    if (majorNodeVersion < CONSTANTS.NODE_VERSION_REQ) {
         logger.error(`Node.js ${CONSTANTS.NODE_VERSION_REQ}+ required. Found ${nodeVersion}`);
         process.exit(1);
     }
     logger.success(`Node.js ${nodeVersion}`);
-    // 2. Check Java (Robust Regex)
+    // 2. Check Java
     try {
         const { stdout, stderr } = await execa('java', ['-version']);
-        const output = stdout || stderr; // Java version often prints to stderr
-        // Regex to capture major version: "version \"17.0.1\"" or "17.0.1"
-        const versionMatch = output.match(/version\s+"?(\d+)/i);
-        if (versionMatch && versionMatch[1]) {
-            const majorVersion = parseInt(versionMatch[1], 10);
-            if (majorVersion >= CONSTANTS.JAVA_VERSION_REQ) {
-                logger.success(`Java version ${majorVersion} detected.`);
-                return;
+        const output = stdout || stderr;
+        // Matches "1.8.0_...", "11.0.1", "17.0.1", "21", etc.
+        const versionMatch = output.match(/(?:version\s+"?|(\d+)\.)(\d+)/i);
+        let majorVersion = 0;
+        if (versionMatch) {
+            if (versionMatch[1] === '1') {
+                majorVersion = parseInt(versionMatch[2], 10); // Handle 1.8.x
             }
             else {
-                logger.error(`Java ${CONSTANTS.JAVA_VERSION_REQ}+ required. Found version ${majorVersion}.`);
+                majorVersion = parseInt(versionMatch[1] || versionMatch[0].match(/\d+/)?.[0] || "0", 10);
             }
         }
+        // Fallback simple match if regex above is too complex
+        if (majorVersion === 0) {
+            const simpleMatch = output.match(/(\d+)\.\d+\.\d+/);
+            if (simpleMatch)
+                majorVersion = parseInt(simpleMatch[1], 10);
+        }
+        if (majorVersion >= CONSTANTS.JAVA_VERSION_REQ) {
+            logger.success(`Java version ${majorVersion} detected.`);
+        }
         else {
-            logger.warn(`Could not parse Java version from output: ${output}`);
-            logger.warn(`Assuming compatible if "17" or "21" is present...`);
-            if (!output.includes('17') && !output.includes('21')) {
-                logger.error(`Java 17+ required. Please verify your installation.`);
-                process.exit(1);
-            }
+            logger.error(`Java ${CONSTANTS.JAVA_VERSION_REQ}+ required. Found version ${majorVersion || 'unknown'}.`);
+            logger.info(`Output: ${output.split('\n')[0]}`);
+            process.exit(1);
         }
     }
     catch (e) {
-        logger.error(`Java runtime not found. Please install JDK 17+.`);
+        logger.error(`Java runtime not found. Please install JDK ${CONSTANTS.JAVA_VERSION_REQ}+.`);
         logger.info(`Download: https://adoptium.net/temurin/releases/`);
         process.exit(1);
+    }
+    // 3. Check Git
+    try {
+        await execa('git', ['--version']);
+        logger.success('Git detected.');
+    }
+    catch (e) {
+        logger.warn('Git not found. Project will be generated without git initialization.');
     }
 }

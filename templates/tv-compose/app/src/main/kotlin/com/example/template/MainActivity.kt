@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -18,8 +19,9 @@ class MainActivity : ComponentActivity() {
             MaterialTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    shape = ClickableSurfaceDefaults.shape(),
-                    color = ClickableSurfaceDefaults.color()
+                    colors = SurfaceDefaults.colors(
+                        containerColor = MaterialTheme.colorScheme.background
+                    )
                 ) {
                     TvContent()
                 }
@@ -54,11 +56,19 @@ fun StandardCard(index: Int) {
     Surface(
         onClick = { /* Handle click */ },
         modifier = Modifier.size(150.dp, 100.dp),
-        shape = ClickableSurfaceDefaults.shape(shape = MaterialTheme.shapes.medium),
-        color = ClickableSurfaceDefaults.color(focusedColor = Color.White)
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            focusedContainerColor = Color.White
+        ),
+        shapes = ClickableSurfaceDefaults.shapes(
+            shape = MaterialTheme.shapes.medium
+        )
     ) {
-        Box(contentAlignment = androidx.compose.ui.Alignment.Center) {
-            Text("Item $index")
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = "Item $index",
+                color = Color.Black
+            )
         }
     }
 }

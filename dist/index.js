@@ -29,6 +29,19 @@ export async function run(args) {
                 { title: 'XML Views (Legacy)', value: 'views', description: 'Classic View-based Android development' }
             ],
             initial: 0
+        },
+        {
+            type: 'multiselect',
+            name: 'libraries',
+            message: 'Select Additional Libraries:',
+            choices: [
+                { title: 'Coil', value: 'coil', description: 'Image loading for Compose' },
+                { title: 'Retrofit', value: 'retrofit', description: 'Type-safe HTTP client' },
+                { title: 'Ktor Client', value: 'ktor', description: 'Multiplatform HTTP client' },
+                { title: 'Kotlinx Serialization', value: 'serialization', description: 'Kotlin JSON serialization' },
+                { title: 'DataStore', value: 'datastore', description: 'Modern alternative to SharedPreferences' }
+            ],
+            instructions: false
         }
     ], {
         onCancel: () => {
@@ -39,6 +52,7 @@ export async function run(args) {
     const projectName = response.projectName || targetDir;
     const projectPath = path.resolve(process.cwd(), projectName);
     const uiType = response.uiType;
+    const selectedLibs = response.libraries || [];
     // 2. Validate Environment
     logger.step('Checking Environment...');
     await checkEnv();
@@ -51,7 +65,8 @@ export async function run(args) {
         projectPath,
         projectName,
         uiType,
-        sdkPath
+        sdkPath,
+        libraries: selectedLibs
     });
     // 5. Setup Gradle Wrapper
     logger.step('Configuring Gradle...');

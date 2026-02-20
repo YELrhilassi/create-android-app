@@ -27,8 +27,8 @@ class MainActivity : ComponentActivity() {
 }
 
 sealed class Screen(val route: String, val label: String, val icon: @Composable () -> Unit) {
-    object Home : Screen("home", "Home", { Icon(Icons.Filled.Home, contentDescription = null) })
-    object Settings : Screen("settings", "Settings", { Icon(Icons.Filled.Settings, contentDescription = null) })
+    data object Home : Screen("home", "Home", { Icon(Icons.Filled.Home, contentDescription = null) })
+    data object Settings : Screen("settings", "Settings", { Icon(Icons.Filled.Settings, contentDescription = null) })
 }
 
 @Composable
