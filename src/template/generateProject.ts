@@ -44,6 +44,10 @@ export async function generateProject(options: ProjectOptions) {
     'CONSTRAINTLAYOUT_VERSION': { group: 'androidx.constraintlayout', name: 'constraintlayout' },
     'RETROFIT_VERSION': { group: 'com.squareup.retrofit2', name: 'retrofit' },
     'KTOR_VERSION': { group: 'io.ktor', name: 'ktor-client-core' },
+    'COIL_VERSION': { group: 'io.coil-kt', name: 'coil-compose' },
+    'HILT_VERSION': { group: 'com.google.dagger', name: 'hilt-android' },
+    'ROOM_VERSION': { group: 'androidx.room', name: 'room-runtime' },
+    'DATASTORE_VERSION': { group: 'androidx.datastore', name: 'datastore-preferences' },
   };
 
   const resolvedMaven = await VersionResolver.resolveAll(artifacts);

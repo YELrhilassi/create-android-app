@@ -165,8 +165,8 @@ export const BUILTIN_RECIPES: Record<string, AddonRecipe> = {
         name: 'coil',
         description: 'Image loading for Compose',
         steps: [
-            { type: 'toml_version', key: 'coil', value: '2.6.0' },
-            { type: 'toml_library', key: 'androidx-coil', value: 'io.coil-kt:coil-compose:2.6.0' },
+            { type: 'toml_version', key: 'coil', value: '{{COIL_VERSION}}' },
+            { type: 'toml_library', key: 'androidx-coil', value: 'io.coil-kt:coil-compose:{{COIL_VERSION}}' },
             { type: 'gradle_implementation', value: 'libs.androidx.coil' }
         ]
     },
@@ -175,8 +175,8 @@ export const BUILTIN_RECIPES: Record<string, AddonRecipe> = {
         description: 'Dependency Injection',
         dependencies: ['ksp'],
         steps: [
-            { type: 'toml_version', key: 'hilt', value: '2.51.1' },
-            { type: 'toml_plugin', key: 'hilt', value: '{ id = "com.google.dagger.hilt.android", version = "2.51.1" }' },
+            { type: 'toml_version', key: 'hilt', value: '{{HILT_VERSION}}' },
+            { type: 'toml_plugin', key: 'hilt', value: '{ id = "com.google.dagger.hilt.android", version.ref = "hilt" }' },
             { type: 'toml_library', key: 'hilt-android', value: '{ group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }' },
             { type: 'toml_library', key: 'hilt-compiler', value: '{ group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }' },
             { type: 'gradle_plugin_root', key: 'hilt' },
@@ -255,8 +255,8 @@ export const BUILTIN_RECIPES: Record<string, AddonRecipe> = {
         name: 'datastore',
         description: 'DataStore Preferences',
         steps: [
-            { type: 'toml_version', key: 'datastore', value: '1.1.1' },
-            { type: 'toml_library', key: 'androidx-datastore-preferences', value: 'androidx.datastore:datastore-preferences:1.1.1' },
+            { type: 'toml_version', key: 'datastore', value: '{{DATASTORE_VERSION}}' },
+            { type: 'toml_library', key: 'androidx-datastore-preferences', value: 'androidx.datastore:datastore-preferences:{{DATASTORE_VERSION}}' },
             { type: 'gradle_implementation', value: 'libs.androidx.datastore.preferences' }
         ]
     },
@@ -265,7 +265,7 @@ export const BUILTIN_RECIPES: Record<string, AddonRecipe> = {
         description: 'Room Database',
         dependencies: ['ksp'],
         steps: [
-            { type: 'toml_version', key: 'room', value: '2.6.1' },
+            { type: 'toml_version', key: 'room', value: '{{ROOM_VERSION}}' },
             { type: 'toml_library', key: 'androidx-room-runtime', value: '{ group = "androidx.room", name = "room-runtime", version.ref = "room" }' },
             { type: 'toml_library', key: 'androidx-room-compiler', value: '{ group = "androidx.room", name = "room-compiler", version.ref = "room" }' },
             { type: 'toml_library', key: 'androidx-room-ktx', value: '{ group = "androidx.room", name = "room-ktx", version.ref = "room" }' },
