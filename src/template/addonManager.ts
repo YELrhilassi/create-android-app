@@ -244,7 +244,7 @@ export const BUILTIN_RECIPES: Record<string, AddonRecipe> = {
         name: 'serialization',
         description: 'Kotlin Serialization',
         steps: [
-            { type: 'toml_plugin', key: 'kotlin-serialization', value: '{ id = "org.jetbrains.kotlin.plugin.serialization", version = "{{KOTLIN_VERSION}}" }' },
+            { type: 'toml_plugin', key: 'kotlin-serialization', value: '{ id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }' },
             { type: 'toml_library', key: 'kotlinx-serialization-json', value: 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3' },
             { type: 'gradle_plugin_root', key: 'kotlin-serialization' },
             { type: 'gradle_plugin_module', key: 'kotlin-serialization' },
